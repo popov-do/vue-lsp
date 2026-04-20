@@ -1,6 +1,6 @@
 {
   "volar": {
-    "command": "vue-lsp-server",
+    "command": "vue-lsp-server-bin",
     "extensionToLanguage": {
       ".vue": "vue"
     },

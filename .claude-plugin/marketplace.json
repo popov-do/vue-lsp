@@ -1,33 +1,20 @@
 {
   "name": "vue-lsp",
-  "owner": {
-    "name": "Dmytro Popov"
-  },
-  "metadata": {
-    "description": "Vue 3 LSP plugin for Claude Code",
-    "version": "1.0.0"
-  },
-  "plugins": [
-    {
-      "name": "vue-lsp",
-      "source": "./",
-      "description": "Vue 3 LSP for Claude Code. Requires: npm install -g github:popov-do/vue-lsp",
-      "version": "1.0.0",
-      "keywords": ["vue", "lsp", "typescript", "volar"],
-      "category": "development",
-      "lspServers": {
-        "volar": {
-          "command": "vue-lsp-server",
-          "extensionToLanguage": {
-            ".vue": "vue"
-          },
-          "initializationOptions": {
-            "typescript": {
-              "tsdk": "node_modules/typescript/lib"
-            }
-          }
-        }
+  "owner": {"name": "Dmytro Popov"},
+  "metadata": {"description": "Vue 3 LSP plugin for Claude Code", "version": "1.0.0"},
+  "plugins": [{
+    "name": "vue-lsp",
+    "source": "./",
+    "description": "Vue 3 LSP for Claude Code. Requires: npm install -g github:popov-do/vue-lsp",
+    "version": "1.0.0",
+    "keywords": ["vue", "lsp", "typescript", "volar"],
+    "category": "development",
+    "lspServers": {
+      "volar": {
+        "command": "vue-lsp-server-bin",
+        "extensionToLanguage": {".vue": "vue"},
+        "initializationOptions": {"typescript": {"tsdk": "node_modules/typescript/lib"}}
       }
     }
-  ]
+  }]
 }
