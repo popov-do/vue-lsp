@@ -1,0 +1,8 @@
+*.test.js
+test.js
+lib.test.js
+coverage/
+.github/
+.claude-plugin/
+.lsp.json
+hooks/
