@@ -1,8 +1,11 @@
 {
-  "name": "vue-lsp",
+  "name": "vue-lsp-server",
   "version": "1.0.0",
-  "description": "Vue 3 LSP plugin for Claude Code — multiplexes Volar v3 with typescript-language-server",
+  "description": "Vue 3 LSP server for Claude Code",
   "main": "vue-lsp-server.js",
+  "bin": {
+    "vue-lsp-server": "./bin/vue-lsp-server"
+  },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
