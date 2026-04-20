@@ -285,14 +285,14 @@ function initializeTs() {
     // Or: .../bin/vue-language-server → .../lib/node_modules/@vue/language-server
     const binDir = path.dirname(realBin);
     const candidates = [
-      // npm global (Unix): /usr/lib/node_modules/@vue/language-server/node_modules
+      // realpath resolved to .../bin/vue-language-server.js → package root is ../
+      path.resolve(binDir, '..', 'node_modules'),
+      // npm global (Unix): .../lib/node_modules/@vue/language-server/node_modules
       path.resolve(binDir, '..', 'lib', 'node_modules', '@vue', 'language-server', 'node_modules'),
-      // npm global (macOS homebrew): same structure
+      // Symlink not resolved: .../bin/ → .../lib/node_modules/...
       path.resolve(binDir, '..', 'lib', 'node_modules', '@vue', 'language-server', 'node_modules'),
       // npm global (Windows): %APPDATA%/npm/node_modules/@vue/language-server/node_modules
       path.resolve(binDir, 'node_modules', '@vue', 'language-server', 'node_modules'),
-      // pnpm/volta: resolve from the binary's real path
-      path.resolve(binDir, '..', 'node_modules', '@vue', 'language-server', 'node_modules'),
     ];
 
     for (const candidate of candidates) {
