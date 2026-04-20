@@ -1,1 +1,13 @@
-{"volar":{"command":"${CLAUDE_PLUGIN_ROOT}/bin/vue-lsp-server","extensionToLanguage":{".vue":"vue"},"initializationOptions":{"typescript":{"tsdk":"node_modules/typescript/lib"}}}}
+{
+  "volar": {
+    "command": "vue-lsp-server",
+    "extensionToLanguage": {
+      ".vue": "vue"
+    },
+    "initializationOptions": {
+      "typescript": {
+        "tsdk": "node_modules/typescript/lib"
+      }
+    }
+  }
+}
