@@ -1,0 +1,20 @@
+{
+  "name": "vue-lsp",
+  "owner": {
+    "name": "Dmytro Popov"
+  },
+  "metadata": {
+    "description": "Vue 3 LSP plugin for Claude Code",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "vue-lsp",
+      "source": "./",
+      "description": "Vue 3 LSP for Claude Code — multiplexes vue-language-server (Volar v3) with typescript-language-server for full TypeScript + Vue intelligence",
+      "version": "1.0.0",
+      "keywords": ["vue", "lsp", "typescript", "volar"],
+      "category": "development"
+    }
+  ]
+}
