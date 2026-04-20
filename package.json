@@ -1,6 +1,6 @@
 {
   "name": "vue-lsp-server",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Vue 3 LSP server for Claude Code",
   "main": "vue-lsp-server.js",
   "bin": {
@@ -11,6 +11,7 @@
     "typescript-language-server": "^5.0.0"
   },
   "scripts": {
+    "postinstall": "chmod +x bin/vue-lsp-server 2>/dev/null || true",
     "test": "vitest run",
     "test:integration": "node test.js"
   },
