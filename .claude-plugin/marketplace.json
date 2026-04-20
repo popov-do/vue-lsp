@@ -11,10 +11,23 @@
     {
       "name": "vue-lsp",
       "source": "./",
-      "description": "Vue 3 LSP for Claude Code — multiplexes vue-language-server (Volar v3) with typescript-language-server for full TypeScript + Vue intelligence",
+      "description": "Vue 3 LSP for Claude Code",
       "version": "1.0.0",
       "keywords": ["vue", "lsp", "typescript", "volar"],
-      "category": "development"
+      "category": "development",
+      "lspServers": {
+        "volar": {
+          "command": "vue-lsp-server",
+          "extensionToLanguage": {
+            ".vue": "vue"
+          },
+          "initializationOptions": {
+            "typescript": {
+              "tsdk": "node_modules/typescript/lib"
+            }
+          }
+        }
+      }
     }
   ]
 }
