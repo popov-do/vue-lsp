@@ -11,7 +11,7 @@
     {
       "name": "vue-lsp",
       "source": "./",
-      "description": "Vue 3 LSP for Claude Code",
+      "description": "Vue 3 LSP for Claude Code. Requires: npm install -g github:popov-do/vue-lsp",
       "version": "1.0.0",
       "keywords": ["vue", "lsp", "typescript", "volar"],
       "category": "development",
