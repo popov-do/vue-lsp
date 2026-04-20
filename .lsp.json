@@ -1,6 +1,7 @@
 {
   "volar": {
-    "command": "vue-lsp-server-bin",
+    "command": "bash",
+    "args": ["-c", "if command -v vue-lsp-server >/dev/null 2>&1; then exec vue-lsp-server; else echo \\"[vue-lsp] ERROR: vue-lsp-server not found. Install: npm install -g github:popov-do/vue-lsp\\" >&2; exit 1; fi"],
     "extensionToLanguage": {
       ".vue": "vue"
     },
