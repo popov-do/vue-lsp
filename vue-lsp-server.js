@@ -56,32 +56,45 @@ function debug(tag, msg) {
 
 log('INIT', `=== Vue LSP Multiplexer v1.0 === PID=${process.pid} CWD=${process.cwd()}`);
 
-// --- Preflight: check dependencies ---
+// --- Resolve server binaries ---
+// Try require.resolve first (works when installed as npm package with deps),
+// then fall back to PATH lookup (works when installed separately)
 
-function checkBinary(name, installCmd) {
+function resolveBin(packageName, binName) {
+  // Try require.resolve from this package's node_modules
   try {
-    execSync(`${WHICH_CMD} ${name}`, { stdio: 'ignore' });
-    return true;
-  } catch {
-    const msg = `[vue-lsp] ERROR: "${name}" not found.\n  Install: ${installCmd}\n`;
-    process.stderr.write(msg);
-    log('ERROR', msg.trim());
-    return false;
-  }
+    const pkgPath = require.resolve(`${packageName}/package.json`);
+    const pkg = require(pkgPath);
+    const binEntry = pkg.bin && (typeof pkg.bin === 'string' ? pkg.bin : pkg.bin[binName]);
+    if (binEntry) {
+      return path.resolve(path.dirname(pkgPath), binEntry);
+    }
+  } catch {}
+
+  // Try node_modules/.bin
+  try {
+    const binPath = path.resolve(__dirname, 'node_modules', '.bin', binName);
+    if (fs.existsSync(binPath)) return binPath;
+  } catch {}
+
+  // Fall back to PATH
+  try {
+    return execSync(`${WHICH_CMD} ${binName}`, { encoding: 'utf8' }).trim();
+  } catch {}
+
+  return null;
 }
 
-const hasVueLs = checkBinary('vue-language-server', 'npm install -g @vue/language-server');
-const hasTsLs = checkBinary('typescript-language-server', 'npm install -g typescript-language-server');
+const VUE_LS_BIN = resolveBin('@vue/language-server', 'vue-language-server');
+const TS_LS_BIN = resolveBin('typescript-language-server', 'typescript-language-server');
 
-if (!hasVueLs || !hasTsLs) {
-  process.stderr.write('\n[vue-lsp] Install missing dependencies and restart.\n');
-  log('FATAL', 'Missing dependencies, exiting');
-  process.exit(1);
-}
+log('INIT', `vue-ls: ${VUE_LS_BIN || 'NOT FOUND'}`);
+log('INIT', `ts-ls: ${TS_LS_BIN || 'NOT FOUND'}`);
 
-// --- Configuration ---
-const VUE_LS_CMD = process.env.VUE_LS_CMD || 'vue-language-server';
-const TS_LS_CMD = process.env.TS_LS_CMD || 'typescript-language-server';
+const VUE_LS_CMD = VUE_LS_BIN ? process.execPath : 'vue-language-server';
+const VUE_LS_ARGS = VUE_LS_BIN ? [VUE_LS_BIN, '--stdio'] : ['--stdio'];
+const TS_LS_CMD = TS_LS_BIN ? process.execPath : 'typescript-language-server';
+const TS_LS_ARGS = TS_LS_BIN ? [TS_LS_BIN, '--stdio'] : ['--stdio'];
 
 // --- State ---
 
@@ -104,8 +117,8 @@ let capturedCapabilities = null;
 
 // --- Spawn servers ---
 
-const vueLs = spawn(VUE_LS_CMD, ['--stdio'], { stdio: ['pipe', 'pipe', 'pipe'] });
-const tsLs = spawn(TS_LS_CMD, ['--stdio'], { stdio: ['pipe', 'pipe', 'pipe'] });
+const vueLs = spawn(VUE_LS_CMD, VUE_LS_ARGS, { stdio: ['pipe', 'pipe', 'pipe'] });
+const tsLs = spawn(TS_LS_CMD, TS_LS_ARGS, { stdio: ['pipe', 'pipe', 'pipe'] });
 
 log('SPAWN', `vue-ls PID=${vueLs.pid}, ts-ls PID=${tsLs.pid}`);
 
