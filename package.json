@@ -1,10 +1,14 @@
 {
   "name": "vue-lsp-server",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Vue 3 LSP server for Claude Code",
   "main": "vue-lsp-server.js",
   "bin": {
     "vue-lsp-server": "./bin/vue-lsp-server"
+  },
+  "dependencies": {
+    "@vue/language-server": "^3.2.0",
+    "typescript-language-server": "^5.0.0"
   },
   "scripts": {
     "test": "npx vitest run",
