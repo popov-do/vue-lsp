@@ -314,14 +314,20 @@ function initializeTs() {
     log('TS-INIT', `Cannot resolve plugin: ${e.message}`);
   }
 
-  // Resolve tsserver.js path from initializationOptions.typescript.tsdk
+  // Resolve tsserver.js path from initializationOptions or auto-detect
   let tsserverPath;
+  const rootDir = capturedRootUri ? uriToPath(capturedRootUri) : process.cwd();
+
   if (capturedInitOptions && capturedInitOptions.typescript && capturedInitOptions.typescript.tsdk) {
-    tsserverPath = path.resolve(
-      uriToPath(capturedRootUri),
-      capturedInitOptions.typescript.tsdk,
-      'tsserver.js'
-    );
+    tsserverPath = path.resolve(rootDir, capturedInitOptions.typescript.tsdk, 'tsserver.js');
+  }
+
+  // Auto-detect if not provided or file doesn't exist
+  if (!tsserverPath || !fs.existsSync(tsserverPath)) {
+    const autoPath = path.resolve(rootDir, 'node_modules', 'typescript', 'lib', 'tsserver.js');
+    if (fs.existsSync(autoPath)) {
+      tsserverPath = autoPath;
+    }
   }
 
   log('TS-INIT', `plugin=${pluginLocation}, tsserver=${tsserverPath || 'default'}`);
