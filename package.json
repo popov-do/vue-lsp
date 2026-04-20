@@ -1,6 +1,6 @@
 {
   "name": "vue-lsp-server",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Vue 3 LSP server for Claude Code",
   "main": "vue-lsp-server.js",
   "bin": {
@@ -12,20 +12,8 @@
   },
   "scripts": {
     "postinstall": "chmod +x bin/vue-lsp-server 2>/dev/null || true",
-    "test": "vitest run",
+    "test": "npx vitest run",
     "test:integration": "node test.js"
   },
-  "license": "MIT",
-  "devDependencies": {
-    "@vitest/coverage-v8": "^4.1.4",
-    "vitest": "^4.1.4"
-  },
-  "files": [
-    "vue-lsp-server.js",
-    "lib.js",
-    "bin/",
-    "LICENSE",
-    "README.md",
-    "PRIVACY.md"
-  ]
+  "license": "MIT"
 }
