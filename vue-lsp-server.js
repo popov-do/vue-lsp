@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Vue LSP Multiplexer for Volar v3
+ * Vue LSP Server for Volar v3
  *
  * Combines vue-language-server v3 (Vue/SFC features) with
  * typescript-language-server (TypeScript features) into a single LSP server.
@@ -24,14 +24,30 @@
 const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const {
+  parseMessages, encode, isEmpty, uriToPath,
+  routeRequest, parseTsServerRequestParams,
+  extractTsResponseBody, buildTsServerResponse, buildTsServerCommand,
+} = require('./lib');
 
-// --- Logging (set VUE_LSP_DEBUG=1 for verbose) ---
-const LOG_FILE = '/tmp/vue-lsp-wrapper.log';
-const logStream = fs.createWriteStream(LOG_FILE, { flags: 'a' });
+// --- Platform ---
+const IS_WIN = process.platform === 'win32';
+const WHICH_CMD = IS_WIN ? 'where' : 'which';
+
+// --- Logging ---
+// Set VUE_LSP_DEBUG=1 for verbose logging to a log file.
+// Without it, only errors go to stderr (no log file created).
 const DEBUG = process.env.VUE_LSP_DEBUG === '1';
+let logStream = null;
+
+if (DEBUG) {
+  const LOG_FILE = IS_WIN ? path.join(process.env.TEMP || '.', 'vue-lsp.log')
+                          : '/tmp/vue-lsp.log';
+  logStream = fs.createWriteStream(LOG_FILE, { flags: 'a' });
+}
 
 function log(tag, msg) {
-  logStream.write(`[${new Date().toISOString()}] [${tag}] ${msg}\n`);
+  if (logStream) logStream.write(`[${new Date().toISOString()}] [${tag}] ${msg}\n`);
 }
 
 function debug(tag, msg) {
@@ -40,71 +56,32 @@ function debug(tag, msg) {
 
 log('INIT', `=== Vue LSP Multiplexer v1.0 === PID=${process.pid} CWD=${process.cwd()}`);
 
+// --- Preflight: check dependencies ---
+
+function checkBinary(name, installCmd) {
+  try {
+    execSync(`${WHICH_CMD} ${name}`, { stdio: 'ignore' });
+    return true;
+  } catch {
+    const msg = `[vue-lsp] ERROR: "${name}" not found.\n  Install: ${installCmd}\n`;
+    process.stderr.write(msg);
+    log('ERROR', msg.trim());
+    return false;
+  }
+}
+
+const hasVueLs = checkBinary('vue-language-server', 'npm install -g @vue/language-server');
+const hasTsLs = checkBinary('typescript-language-server', 'npm install -g typescript-language-server');
+
+if (!hasVueLs || !hasTsLs) {
+  process.stderr.write('\n[vue-lsp] Install missing dependencies and restart.\n');
+  log('FATAL', 'Missing dependencies, exiting');
+  process.exit(1);
+}
+
 // --- Configuration ---
 const VUE_LS_CMD = process.env.VUE_LS_CMD || 'vue-language-server';
 const TS_LS_CMD = process.env.TS_LS_CMD || 'typescript-language-server';
-
-// Requests: vue-ls first → ts-ls fallback if empty
-const TS_FALLBACK_METHODS = new Set([
-  'textDocument/hover',
-  'textDocument/definition',
-  'textDocument/typeDefinition',
-  'textDocument/implementation',
-  'textDocument/references',
-  'textDocument/signatureHelp',
-  'textDocument/codeAction',
-  'textDocument/rename',
-  'textDocument/prepareRename',
-  'textDocument/completion',
-  'textDocument/documentHighlight',
-  'textDocument/prepareCallHierarchy',
-  'callHierarchy/incomingCalls',
-  'callHierarchy/outgoingCalls',
-]);
-
-// Requests: ts-ls only (vue-ls doesn't handle these)
-const TS_ONLY_METHODS = new Set([
-  'completionItem/resolve',
-  'workspace/symbol',
-]);
-
-// --- JSON-RPC helpers ---
-
-function parseMessages(buffer) {
-  const messages = [];
-  let offset = 0;
-
-  while (offset < buffer.length) {
-    const headerEnd = buffer.indexOf('\r\n\r\n', offset);
-    if (headerEnd === -1) break;
-
-    const header = buffer.slice(offset, headerEnd).toString('ascii');
-    const match = header.match(/Content-Length:\s*(\d+)/i);
-    if (!match) break;
-
-    const contentLength = parseInt(match[1], 10);
-    const contentStart = headerEnd + 4;
-    const contentEnd = contentStart + contentLength;
-
-    if (contentEnd > buffer.length) break;
-
-    messages.push(buffer.slice(contentStart, contentEnd).toString('utf8'));
-    offset = contentEnd;
-  }
-
-  return { messages, remaining: buffer.slice(offset) };
-}
-
-function encode(obj) {
-  const content = JSON.stringify(obj);
-  return Buffer.from(`Content-Length: ${Buffer.byteLength(content, 'utf8')}\r\n\r\n${content}`, 'utf8');
-}
-
-function isEmpty(result) {
-  if (result === null || result === undefined) return true;
-  if (Array.isArray(result) && result.length === 0) return true;
-  return false;
-}
 
 // --- State ---
 
@@ -152,58 +129,42 @@ process.stdin.on('data', (chunk) => {
     const msg = JSON.parse(raw);
     const method = msg.method;
     const id = msg.id;
+    const route = routeRequest(method, id);
 
-    // --- Initialize ---
-    if (method === 'initialize') {
-      capturedRootUri = msg.params.rootUri;
-      capturedWorkspaceFolders = msg.params.workspaceFolders;
-      capturedInitOptions = msg.params.initializationOptions;
-      capturedCapabilities = msg.params.capabilities;
-      initializeTs();
-      vueLs.stdin.write(encode(msg));
-      continue;
+    debug('ROUTE', `${method || 'response'} id=${id || '-'} → ${route}`);
+
+    switch (route) {
+      case 'initialize':
+        capturedRootUri = msg.params.rootUri;
+        capturedWorkspaceFolders = msg.params.workspaceFolders;
+        capturedInitOptions = msg.params.initializationOptions;
+        capturedCapabilities = msg.params.capabilities;
+        initializeTs();
+        vueLs.stdin.write(encode(msg));
+        break;
+
+      case 'both':
+        vueLs.stdin.write(encode(msg));
+        if (tsInitialized) tsLs.stdin.write(encode(msg));
+        if (method === 'exit') shutdown();
+        break;
+
+      case 'ts-only': {
+        const tsId = nextTsId++;
+        tsFallbackRequests.set(tsId, { editorId: id, method });
+        tsLs.stdin.write(encode({ ...msg, id: tsId }));
+        break;
+      }
+
+      case 'fallback':
+        pendingFallbacks.set(id, { method, params: msg.params });
+        vueLs.stdin.write(encode(msg));
+        break;
+
+      default: // 'vue'
+        vueLs.stdin.write(encode(msg));
+        break;
     }
-
-    // --- Shutdown/exit → both servers ---
-    if (method === 'shutdown' || method === 'exit') {
-      debug('ROUTE', `${method} → both`);
-      vueLs.stdin.write(encode(msg));
-      tsLs.stdin.write(encode(msg));
-      if (method === 'exit') shutdown();
-      continue;
-    }
-
-    // --- Document sync → both servers ---
-    if (method === 'textDocument/didOpen' ||
-        method === 'textDocument/didChange' ||
-        method === 'textDocument/didClose' ||
-        method === 'textDocument/didSave') {
-      debug('ROUTE', `${method} → both`);
-      vueLs.stdin.write(encode(msg));
-      if (tsInitialized) tsLs.stdin.write(encode(msg));
-      continue;
-    }
-
-    // --- TS-only → ts-ls directly ---
-    if (TS_ONLY_METHODS.has(method) && id !== undefined) {
-      debug('ROUTE', `${method} id=${id} → ts-ls only`);
-      const tsId = nextTsId++;
-      tsFallbackRequests.set(tsId, { editorId: id, method });
-      tsLs.stdin.write(encode({ ...msg, id: tsId }));
-      continue;
-    }
-
-    // --- TS fallback → vue-ls first, then ts-ls if empty ---
-    if (TS_FALLBACK_METHODS.has(method) && id !== undefined) {
-      debug('ROUTE', `${method} id=${id} → vue-ls (with ts fallback)`);
-      pendingFallbacks.set(id, { method, params: msg.params });
-      vueLs.stdin.write(encode(msg));
-      continue;
-    }
-
-    // --- Everything else → vue-ls ---
-    debug('ROUTE', `${method || 'response'} id=${id || '-'} → vue-ls`);
-    vueLs.stdin.write(encode(msg));
   }
 });
 
@@ -280,13 +241,9 @@ tsLs.stdout.on('data', (chunk) => {
     if (msg.id !== undefined && tsProxyRequests.has(msg.id)) {
       const { vueRequestId } = tsProxyRequests.get(msg.id);
       tsProxyRequests.delete(msg.id);
-      const body = msg.result && msg.result.body !== undefined ? msg.result.body : msg.result;
+      const body = extractTsResponseBody(msg.result);
       debug('TS→VUE', `tsserver/response vueId=${vueRequestId}`);
-      vueLs.stdin.write(encode({
-        jsonrpc: '2.0',
-        method: 'tsserver/response',
-        params: [[vueRequestId, body]],
-      }));
+      vueLs.stdin.write(encode(buildTsServerResponse(vueRequestId, body)));
       continue;
     }
 
@@ -321,11 +278,38 @@ function initializeTs() {
   // Resolve @vue/typescript-plugin from vue-language-server's bundled node_modules
   let pluginLocation = '';
   try {
-    const vueLsBin = execSync('which vue-language-server', { encoding: 'utf8' }).trim();
-    pluginLocation = path.resolve(
-      path.dirname(vueLsBin), '..', 'lib', 'node_modules',
-      '@vue', 'language-server', 'node_modules'
-    );
+    const vueLsBin = execSync(`${WHICH_CMD} vue-language-server`, { encoding: 'utf8' }).trim().split('\n')[0];
+    // Follow symlinks to find actual module location
+    const realBin = fs.realpathSync(vueLsBin);
+    // Navigate: .../node_modules/.bin/vue-language-server → .../node_modules/@vue/language-server
+    // Or: .../bin/vue-language-server → .../lib/node_modules/@vue/language-server
+    const binDir = path.dirname(realBin);
+    const candidates = [
+      // npm global (Unix): /usr/lib/node_modules/@vue/language-server/node_modules
+      path.resolve(binDir, '..', 'lib', 'node_modules', '@vue', 'language-server', 'node_modules'),
+      // npm global (macOS homebrew): same structure
+      path.resolve(binDir, '..', 'lib', 'node_modules', '@vue', 'language-server', 'node_modules'),
+      // npm global (Windows): %APPDATA%/npm/node_modules/@vue/language-server/node_modules
+      path.resolve(binDir, 'node_modules', '@vue', 'language-server', 'node_modules'),
+      // pnpm/volta: resolve from the binary's real path
+      path.resolve(binDir, '..', 'node_modules', '@vue', 'language-server', 'node_modules'),
+    ];
+
+    for (const candidate of candidates) {
+      if (fs.existsSync(path.join(candidate, '@vue', 'typescript-plugin'))) {
+        pluginLocation = candidate;
+        break;
+      }
+    }
+
+    // Last resort: use require.resolve from the binary's directory
+    if (!pluginLocation) {
+      const resolved = execSync(
+        `node -e "console.log(require.resolve('@vue/typescript-plugin/package.json'))"`,
+        { encoding: 'utf8', env: { ...process.env, NODE_PATH: path.resolve(binDir, '..', 'lib', 'node_modules') } }
+      ).trim();
+      pluginLocation = path.dirname(path.dirname(resolved));
+    }
   } catch (e) {
     log('TS-INIT', `Cannot resolve plugin: ${e.message}`);
   }
@@ -334,7 +318,7 @@ function initializeTs() {
   let tsserverPath;
   if (capturedInitOptions && capturedInitOptions.typescript && capturedInitOptions.typescript.tsdk) {
     tsserverPath = path.resolve(
-      capturedRootUri.replace('file://', ''),
+      uriToPath(capturedRootUri),
       capturedInitOptions.typescript.tsdk,
       'tsserver.js'
     );
@@ -368,13 +352,7 @@ function initializeTs() {
 // =====================================================================
 
 function handleTsServerRequest(params) {
-  let vueRequestId, command, args;
-  if (Array.isArray(params[0])) {
-    [vueRequestId, command, args] = params[0];
-  } else {
-    [vueRequestId, command, args] = params;
-  }
-
+  const { vueRequestId, command, args } = parseTsServerRequestParams(params);
   debug('TSREQ', `id=${vueRequestId} cmd=${command}`);
 
   if (!tsInitialized) {
@@ -388,16 +366,7 @@ function handleTsServerRequest(params) {
 function sendTsServerCommand(vueRequestId, command, args) {
   const id = nextTsId++;
   tsProxyRequests.set(id, { vueRequestId });
-
-  tsLs.stdin.write(encode({
-    jsonrpc: '2.0',
-    id,
-    method: 'workspace/executeCommand',
-    params: {
-      command: 'typescript.tsserverRequest',
-      arguments: [command, args],
-    },
-  }));
+  tsLs.stdin.write(encode(buildTsServerCommand(id, command, args)));
 }
 
 // =====================================================================
@@ -412,7 +381,7 @@ function shutdown() {
   log('SHUTDOWN', 'Cleaning up');
   vueLs.kill();
   tsLs.kill();
-  logStream.end();
+  if (logStream) logStream.end();
   process.exit(0);
 }
 

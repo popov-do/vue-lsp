@@ -6,19 +6,5 @@
     "name": "Dmytro Popov"
   },
   "license": "MIT",
-  "keywords": ["vue", "lsp", "typescript", "volar", "language-server"],
-  "lspServers": {
-    "volar": {
-      "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/vue-lsp-wrapper.js"],
-      "extensionToLanguage": {
-        ".vue": "vue"
-      },
-      "initializationOptions": {
-        "typescript": {
-          "tsdk": "node_modules/typescript/lib"
-        }
-      }
-    }
-  }
+  "keywords": ["vue", "lsp", "typescript", "volar", "language-server"]
 }

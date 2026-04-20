@@ -1,0 +1,16 @@
+{
+  "name": "vue-lsp",
+  "version": "1.0.0",
+  "description": "Vue 3 LSP plugin for Claude Code — multiplexes Volar v3 with typescript-language-server",
+  "main": "vue-lsp-server.js",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "node test.js"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.4",
+    "vitest": "^4.1.4"
+  }
+}
