@@ -1,7 +1,7 @@
 {
   "volar": {
-    "command": "bash",
-    "args": ["-c", "command -v vue-lsp-server >/dev/null 2>&1 && exec vue-lsp-server || { echo '[vue-lsp] ERROR: vue-lsp-server not found. Install: npm install -g github:popov-do/vue-lsp' >&2; exit 1; }"],
+    "command": "node",
+    "args": ["-e", "try{require('child_process').execSync('which vue-lsp-server',{stdio:'ignore'});require('child_process').execFileSync('vue-lsp-server',{stdio:'inherit'})}catch(e){process.stdin.on('data',d=>{const s=d.toString();const m=s.match(/Content-Length:\\s*(\\d+)\\r\\n\\r\\n/);if(m){try{const msg=JSON.parse(s.slice(s.indexOf('{'))); if(msg.method==='initialize'){const r=JSON.stringify({jsonrpc:'2.0',id:msg.id,error:{code:-32099,message:'[vue-lsp] vue-lsp-server not found. Install: npm install -g github:popov-do/vue-lsp'}});process.stdout.write('Content-Length: '+Buffer.byteLength(r)+'\\r\\n\\r\\n'+r);process.exit(1)}}catch(e){}}});}"],
     "extensionToLanguage": {
       ".vue": "vue"
     },
