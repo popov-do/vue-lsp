@@ -6,5 +6,9 @@
   "bin": {
     "vue-lsp-server": "./bin/vue-lsp-server"
   },
+  "scripts": {
+    "test": "npx vitest run",
+    "test:integration": "node test.js"
+  },
   "license": "MIT"
 }
