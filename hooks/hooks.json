@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "which vue-lsp-server > /dev/null 2>&1 || echo \"\n[vue-lsp] vue-lsp-server not found. Install:\n\n  npm install -g github:popov-do/vue-lsp\n\nThis installs vue-lsp-server, vue-language-server, and typescript-language-server.\n\" >&2"
+          }
+        ]
+      }
+    ]
+  }
+}
