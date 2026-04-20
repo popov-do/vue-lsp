@@ -1,13 +1,10 @@
 {
   "name": "vue-lsp-server",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Vue 3 LSP server for Claude Code",
   "main": "vue-lsp-server.js",
   "bin": {
     "vue-lsp-server": "./bin/vue-lsp-server"
-  },
-  "scripts": {
-    "postinstall": "chmod +x bin/vue-lsp-server 2>/dev/null || true"
   },
   "license": "MIT"
 }
