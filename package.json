@@ -1,19 +1,13 @@
 {
   "name": "vue-lsp-server",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Vue 3 LSP server for Claude Code",
   "main": "vue-lsp-server.js",
   "bin": {
     "vue-lsp-server": "./bin/vue-lsp-server"
   },
-  "dependencies": {
-    "@vue/language-server": "^3.2.0",
-    "typescript-language-server": "^5.0.0"
-  },
   "scripts": {
-    "postinstall": "chmod +x bin/vue-lsp-server 2>/dev/null || true",
-    "test": "npx vitest run",
-    "test:integration": "node test.js"
+    "postinstall": "chmod +x bin/vue-lsp-server 2>/dev/null || true"
   },
   "license": "MIT"
 }
