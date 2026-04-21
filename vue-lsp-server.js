@@ -292,9 +292,8 @@ function initializeTs() {
   let pluginLocation = '';
   try {
     const pluginPkg = require.resolve('@vue/typescript-plugin/package.json');
-    pluginLocation = path.dirname(pluginPkg);
-    // typescript-language-server needs the parent node_modules dir
-    pluginLocation = path.dirname(path.dirname(pluginLocation));
+    // .../node_modules/@vue/typescript-plugin/package.json → .../node_modules
+    pluginLocation = path.resolve(path.dirname(pluginPkg), '..', '..');
   } catch {
     // Fallback: find it relative to vue-language-server
     try {
