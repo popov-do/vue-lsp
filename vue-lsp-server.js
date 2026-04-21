@@ -288,44 +288,24 @@ tsLs.stdout.on('data', (chunk) => {
 function initializeTs() {
   tsInitId = nextTsId++;
 
-  // Resolve @vue/typescript-plugin from vue-language-server's bundled node_modules
+  // Resolve @vue/typescript-plugin location
   let pluginLocation = '';
   try {
-    const vueLsBin = execSync(`${WHICH_CMD} vue-language-server`, { encoding: 'utf8' }).trim().split('\n')[0];
-    // Follow symlinks to find actual module location
-    const realBin = fs.realpathSync(vueLsBin);
-    // Navigate: .../node_modules/.bin/vue-language-server → .../node_modules/@vue/language-server
-    // Or: .../bin/vue-language-server → .../lib/node_modules/@vue/language-server
-    const binDir = path.dirname(realBin);
-    const candidates = [
-      // realpath resolved to .../bin/vue-language-server.js → package root is ../
-      path.resolve(binDir, '..', 'node_modules'),
-      // npm global (Unix): .../lib/node_modules/@vue/language-server/node_modules
-      path.resolve(binDir, '..', 'lib', 'node_modules', '@vue', 'language-server', 'node_modules'),
-      // Symlink not resolved: .../bin/ → .../lib/node_modules/...
-      path.resolve(binDir, '..', 'lib', 'node_modules', '@vue', 'language-server', 'node_modules'),
-      // npm global (Windows): %APPDATA%/npm/node_modules/@vue/language-server/node_modules
-      path.resolve(binDir, 'node_modules', '@vue', 'language-server', 'node_modules'),
-    ];
-
-    for (const candidate of candidates) {
+    const pluginPkg = require.resolve('@vue/typescript-plugin/package.json');
+    pluginLocation = path.dirname(pluginPkg);
+    // typescript-language-server needs the parent node_modules dir
+    pluginLocation = path.dirname(path.dirname(pluginLocation));
+  } catch {
+    // Fallback: find it relative to vue-language-server
+    try {
+      const vueLsPkg = require.resolve('@vue/language-server/package.json');
+      const candidate = path.join(path.dirname(vueLsPkg), 'node_modules');
       if (fs.existsSync(path.join(candidate, '@vue', 'typescript-plugin'))) {
         pluginLocation = candidate;
-        break;
       }
-    }
-
-    // Last resort: use require.resolve from the binary's directory
-    if (!pluginLocation) {
-      const resolved = execSync(
-        `node -e "console.log(require.resolve('@vue/typescript-plugin/package.json'))"`,
-        { encoding: 'utf8', env: { ...process.env, NODE_PATH: path.resolve(binDir, '..', 'lib', 'node_modules') } }
-      ).trim();
-      pluginLocation = path.dirname(path.dirname(resolved));
-    }
-  } catch (e) {
-    log('TS-INIT', `Cannot resolve plugin: ${e.message}`);
+    } catch {}
   }
+  log('TS-INIT', `plugin location: ${pluginLocation || 'NOT FOUND'}`);
 
   // Resolve tsserver.js path from initializationOptions or auto-detect
   let tsserverPath;
